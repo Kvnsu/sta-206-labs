@@ -1,0 +1,171 @@
+---
+title: "STA 206 Homework 5 Problem 6"
+author: "Kevin Su"
+date: "11/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## A
+
+```{r}
+setwd("C:/Users/kevin/Downloads")
+property <- read.table("property.txt")
+colnames(property) <- c("Y", "X1", "X2", "X3", "X4")
+
+summary(property)
+
+hist(property$Y) #symmetric, vaguely normal
+qqnorm(property$Y)
+qqline(property$Y)
+
+hist(property$X1) #bimodal
+hist(property$X2) #left skewed
+hist(property$X3) #right skewed
+hist(property$X4) #right skewed, long tail
+
+```
+
+From this histograms we see that Y (rental rates) is symmetric and likely normal by normal qq plot. Additionally, X1 (age) is bimodal, X2 (operating expenses) is left-skewed, X3 (vacancy rate) is right skewed, and X4 (square footage) is also right skewed with a long tail.
+
+Y, X2, and X3 are of numeric type, X1 and X4 are of integer (int) type.
+
+## B
+
+```{r}
+
+pairs(~Y+X1+X2+X3+X4, data = property)
+
+cor(property)
+
+```
+
+Y, X2, and X4 seem to be directly positively correlated with each other. X1 seems to be negatively correlated with Y. There are some very high leverage points as far in the X3 parameter that can be concerning to draw conclusions with.
+
+## C
+
+```{r}
+
+Model1 <- lm(Y~X1+X2+X3+X4, data = property)
+summary(Model1)
+anova(Model1)
+
+```
+The MSE is 1.293, R-squared is 0.5847, and R-squared adjusted is .5629.
+The Least Squares estimators are
+
+B0 = 12.2
+B1 = -.1420
+B2 = 0.2820
+B3 = 0.6193
+B4 = 0.000007924
+
+Y = 12.2 -.1420X1 + .2820X2 + .6193X3 + .000007924X4
+
+## D
+```{r}
+layout(matrix(c(1,2,3,3), 2, 2, byrow = T))
+plot(Model1, which = 1)
+plot(Model1, which = 2)
+boxplot(residuals(Model1), horizontal = T)
+
+```
+
+The residuals seem somewhat light tailed but otherwise little to be concerned about.
+
+## E
+
+```{r}
+plot(property$X1, residuals(Model1))
+plot(property$X2, residuals(Model1))
+plot(property$X3, residuals(Model1))
+plot(property$X4, residuals(Model1))
+plot(property$X1*property$X2, residuals(Model1))
+plot(property$X1*property$X3, residuals(Model1))
+plot(property$X1*property$X4, residuals(Model1))
+plot(property$X2*property$X3, residuals(Model1))
+plot(property$X2*property$X4, residuals(Model1))
+plot(property$X3*property$X4, residuals(Model1))
+
+
+```
+
+There doesn't seem to be a whole lot of effects on residuals due to two-way interaction, with the exception of maybe X1 and X3 but that may be affected by a couple high leverage outliers.
+
+## F
+
+```{r}
+summary(Model1)
+```
+
+H0: Bi = 0
+H1: Bi != 0
+As P(|t|> |t.005|) or |t| > 2.642 on t distribution with df = 76, we reject null at alpha = 0.01 level for X1, X2, and X4. 
+As P(|t|< |t.005|), we fail to reject null at alpha = 0.01 level for X3.
+
+We conclude that X1 (age), X2 (operating expense), and X4 (total sq footage) are likely significant predictors for Y (cost of rent).
+
+## G
+```{r}
+anova(Model1)
+
+summary(Model1)
+```
+
+SST = 236.557
+SSR = 138.326
+SSE = 98.231
+
+H0: B1 = B2 = B3 = B4 = 0
+H1: At least one Bi is not 0
+
+We reject if F (.99, ndf = 4, ddf = 76) > 3.57652. As F = 26.76, we reject H0 and conclude that at least one coefficient of the predictors is not 0.
+
+## H
+```{r}
+Model2 <- lm(Y~X1+X2+X4, data = property)
+summary(Model2)
+anova(Model2)
+```
+
+We fitted a model by regressing on 3 predictors as we failed to conclude that X3 was a significant predictor for Y. 
+
+B0 = 12.37058
+B1 = -0.14416
+B2 = 0.26717
+B4 = 0.000008178
+
+Y = 12.37058 -0.14416X1 + 0.26717X2 + 0.000008178X4
+
+MSE = 1.281
+R-squared = 0.583
+R-squared adjusted = 0.5667
+
+MSE and R-Squared is slightly lower while Adjusted R-squared is slightly higher than from Model 1 as the lower penalty for extra parameters outweighs the benefits from adding X3 as a predictor for the purpose of adjusted R-squared.
+
+
+## I
+
+```{r}
+summary(Model2)
+confint(Model2)
+```
+
+The Standard errors of the regression coefficients from model 2 are smaller than those in model 1. The 95% confidence intervals for model 2 are provided as output.
+If these intervals were constructed under Model 1, the widths would be wider than the constructed intervals from Model 2 as the standard errors of the coefficients are smaller in Model 2.
+
+## J
+
+```{r}
+newobs <- data.frame(X1 = 4, X2 = 10, X3 = 0.1, X4 = 80000)
+predict.lm(Model1, newobs, interval = "predict", level = 0.99)
+predict.lm(Model2, newobs, interval = "predict", level = 0.99)
+```
+
+The prediction intervals are provided as output. We find that the prediction interval for Model 2 is smaller than that of Model 1, due to smaller standard error.
+
+## K
+Model 2 would be preferred over Model 1 as the adjusted R-squared value is higher. X3 does not seem to be a significant predictor of Y and can likely be omitted from the model.

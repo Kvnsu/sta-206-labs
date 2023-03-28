@@ -1,0 +1,133 @@
+---
+title: "Homework 7"
+author: "Kevin Su"
+date: "11/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 3
+
+## A
+
+```{r}
+
+cars <- read.csv("C:/Users/kevin/Downloads/Cars.csv")
+```
+
+## B
+```{r}
+cars[cars == "?"] = NA
+```
+
+## C
+
+Country Code should be treated as categorical while horsepower needs to be converted to a numeric value. All others can be treated as numeric (cylinders can be argued as categorical due to discrete ordinal nature with few options but will remain as numeric).
+
+```{r}
+cars$horsepower = as.numeric(cars$horsepower)
+cars$country.code = as.factor(cars$country.code)
+```
+
+## D
+```{r}
+par(mfrow=c(2,3))
+hist(cars$mpg, main = "MPG", xlab = "MPG")
+hist(cars$cylinders, main = "Cylinders", xlab = "Cylinders")
+hist(cars$displacement, main = "Displacement", xlab = "Displacement")
+hist(cars$horsepower, main = "Horsepower", xlab = "Horsepower")
+hist(cars$weight, main = "Weight", xlab = "Weight")
+hist(cars$acceleration, main = "Acceleration", xlab = "Acceleration")
+```
+
+MPG has a smooth right skewed distribution, and Cylinders has 3 clear modes to the point where it can even be considered a categorical variable. Displacement has a decreasing almost logarithmic distribution but not smooth. Horsepower has a mode near 100 but a long right tail. Weight clustered around 2000 mostly but otherwise distribution pretty close to uniform up to 4.5K. Acceleration has a nearly symmetric normal-looking distribution centered around 15.
+
+## E
+```{r}
+panel.corr <- function(x, y)
+{
+par(usr = c(0, 1, 0, 1))
+r <- cor(x, y, method = "pearson", use = "pair")
+formatcorr <- format(r, digits = 3)
+Text <- paste0("r =", formatcorr )
+text(0.5, 0.5, Text)
+}
+
+pairs(cars[,1:6], lower.panel = panel.corr)
+```
+
+## F
+```{r}
+pie(table(cars$country.code), main="Pie chart of country composition", labels = paste(names(table(cars$country.code)), "- Count:" ,table(cars$country.code)))
+```
+
+## G
+```{r}
+mpg1 = cars$mpg[which(cars$country.code == 1)]
+mpg2 = cars$mpg[which(cars$country.code == 2)]
+mpg3 = cars$mpg[which(cars$country.code == 3)]
+
+boxplot(mpg3, mpg2, mpg1, names = c("Country 3", "Country 2", "Country 1"), main = "MPG by country", xlab = "MPG", horizontal = T)
+```
+
+There looks to be a possible relationship between MPG and country where MPG is noticeably lower in Country 1 and higher in Country 3.
+
+
+# Problem 4
+
+## A
+A log transformation of the MPG variable may be useful to account for the right skew in the data and to ensure no negative predicted values can occur. 
+
+```{r}
+cars$cylinders = as.factor(cars$cylinders)
+```
+
+## B
+```{r}
+Model1 <- lm(log(mpg)~cylinders+ horsepower + weight, data = cars)
+summary(Model1)
+par(mfrow = c(2,2))
+plot(Model1)
+```
+
+The model appears to be adequate with no significant outliers and the few leverage points coming from a rare class of cylinder numbers.
+
+## C
+
+```{r}
+summary(Model1)
+paste("Y = ", Model1$coefficients[1] + Model1$coefficients[2], " + ", Model1$coefficients[6], " * (horsepower)" , " + ", Model1$coefficients[7], " * (weight)")
+```
+
+log(MPG^) =  4.03020250981159  +  -0.00269399451260783  * (horsepower)  +  -0.000199810634935333  * (weight) is the derived regression function for cars with 4 cylinders
+
+## D
+
+```{r}
+Model2 <- lm(log(mpg)~cylinders + horsepower + weight + cylinders*horsepower + cylinders*weight, data = cars)
+summary(Model2)
+
+paste("Y = ", Model2$coefficients[1] + Model2$coefficients[2], " + ", Model2$coefficients[6] + Model2$coefficients[8], " * (horsepower)" , " + ", Model2$coefficients[7] + Model2$coefficients[12], " * (weight)")
+```
+
+log(MPG) =  4.14196124348289  +  -0.00545902344381033  * (horsepower)  +  -0.000154393454648568  * (weight) is the regression function for cars with 4 cylinders for the second model with interactions.
+
+## E
+```{r}
+anova(Model1, Model2)
+```
+We find through the partial F test that the additional interactions added in Model 2 do contribute significantly to the model. 
+
+## F
+```{r}
+newdata <- cbind.data.frame(NA, 4, NA, 100, 3000, NA, NA)
+names(newdata) <- c("mpg", "cylinders", "displacement", "horsepower", "weight", "acceleration", "country.code")
+newdata$cylinders <- as.factor(newdata$cylinders)
+newdata$country.code <- as.factor(newdata$country.code)
+predict.lm(Model1, newdata, interval = "prediction")
+predict.lm(Model2, newdata, interval = "prediction")
+```
+We observe that the prediction given by the second model with interactions is lower than the prediction from the first model and the prediction interval is slightly smaller on the second model as well. Note that the predictions are given for the log of MPG.

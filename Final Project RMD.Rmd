@@ -1,0 +1,255 @@
+---
+title: "206 final project"
+author: "Sixue Cheng"
+date: "11/23/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+set.seed(207)
+
+setwd("C:/Users/kevin/Documents/UC Davis Fall 2021 Homework/STA 206/Final Project")
+abalone <- read.table("abalone.txt",sep=",", header=FALSE)
+colnames(abalone) <- c("sex","length","diameter","height","whole_weight","shucked_weight","viscera_weight","shell_weight","rings")
+sex <- factor(abalone$sex)
+abalone['sex'] <- sex
+#age <- as.data.frame(abalone$rings+1.5)
+#abalone['age'] <- age
+head(abalone)
+```
+```{r}
+lapply(abalone,function(x) { length(which(is.na(x)))})
+summary(abalone)
+```
+So the dataset does not have any missing values. 
+sex is qualitative variable, all other variables are quantitive variables.
+Note that the original documentation from UCI data repository indicates that continuous explanatory variables were divided by 200.
+
+```{r}
+par(mfrow = c(2,4))
+hist(abalone[,2],main="Histogram of length", xlab="length")
+hist(abalone[,3],main="Histogram of diameter", xlab="diameter")
+hist(abalone[,4],main="Histogram of height", xlab="height")
+hist(abalone[,5],main="Histogram of whole weight", xlab="whole weight")
+hist(abalone[,6],main="Histogram of shucked weight", xlab="shucked weight")
+hist(abalone[,7],main="Histogram of viscera weight", xlab="viscera weight")
+hist(abalone[,8],main="Histogram of shell weight", xlab="shell weight")
+hist(abalone[,9],main="Histogram of rings", xlab="viscera rings")
+```
+The distribution of all quantitative variables follows right-skewed or left-skewed normal distribution. Length, diameter are left-skewed, and height, whole weight, shucked weight, viscera weight, shell weight and rings are right skewed. 
+
+```{r}
+par(mfrow = c(1,2))
+tb.sex <- table(abalone[,1])
+pie(tb.sex, main = 'pie chart of sex')
+boxplot(abalone$rings ~ abalone$sex,col='steelblue', main = 'box plot of sex and ages') 
+```
+The proportions of infant, female, and male abalone are roughly same. the average age of infant abalone is lower than that of female and male abalone, the average age and age range of female and male abalone is nearly the same.
+
+```{r}
+pairs(abalone[, -1], panel = panel.smooth, main = "quantitative variables of abalone")
+```
+height has obvious nonlinear relationship with other variables. Length has obvious linear relationship with diameter, whole weight, shucked weight and viscera weight has obvious linear relationship between them.
+
+```{r}
+aggregate(abalone[,-1], list(abalone[,1]), FUN=mean)
+```
+No obvious difference between female and male abalone in all variables, while they have distinct difference with infant abalone.
+
+```{r}
+cor(abalone[,-1], method = "pearson",use = "complete.obs")
+```
+From the correlation matrix, we can see length and all other predictor variables has high correlation, same with whole weight. The correlation between all predictor variables are not moderate. Such high correlation coefficients among features can result into multicollinearity. We can later further investigate multicollinearity and select variables through examining VIF.
+
+EDA:
+
+
+```{r}
+len<- dim(abalone)[1]
+train_ind <-sample(1:len,0.7*len,replace = F)
+#cv_ind <- sample(train_ind, 0.4*length(train_ind), replace = F)
+train <- abalone[train_ind,]
+#cv <- abalone[cv_ind,]
+test <- abalone[-train_ind,]
+dim(train)
+dim(test)
+```
+
+```{r}
+eval_results <- function(true, predicted, df) {
+  SSE <- sum((predicted - true)^2)
+  SSTO <- sum((true - mean(true))^2)
+  R_square <- 1 - SSE / SSTO
+  RMSE = sqrt(SSE/nrow(df))
+  # Model performance metrics
+  data.frame(RMSE = RMSE,Rsquare = R_square)
+}
+
+```
+
+
+```{r}
+fit <- lm(rings~length+diameter+height+whole_weight+shucked_weight+viscera_weight+shell_weight+factor(sex), data = train)
+summary(fit)
+lm.train.pred <- predict(fit, newdata = train[,-9]) #Edited to work properly
+lm.test.pred <- predict(fit, newdata = test[,-9]) #Edited to work properly
+eval_results(train[,9], lm.train.pred, train)
+eval_results(test[,9], lm.test.pred, test)
+
+```
+
+
+```{r}
+par(mfrow = c(2,2))
+plot(fit)
+```
+From the residual vs fitted plot, there is a a pattern of heteroscedasticity, and in Normal Q-Q plot, the pattern is heavy tailed. Also, the Scale-Location does not show a straight line, which basically means the full model is not adequate. We can also see from the Residual vs Leverage plot that observation number 2052 is an influential case as it is an extreme outlier in height (and as a result, cook's distance), which may be a mistake in data collection or data entry as a 7 inch height (not length) abalone (1.13*200mm) is unreasonable when measured laying on its side, and all of its other measurements otherwise seem very ordinary. As such, we remove observation 2052 and scale the explanatory variables to further analyse the remaining data.
+
+```{r}
+
+train.C = train[!train$height == max(abalone$height),] #removes observation 2052
+train.C[,2:8] = scale(train.C[,2:8]) #scale explanatory variables
+test.C = test
+test.C[,2:8] = scale(test.C[,2:8])
+
+fit.scaled <- lm(rings~., data = train.C)
+
+```
+
+```{r}
+
+library(MASS)
+
+boxcoxY <- boxcox(fit.scaled)
+lambda <- boxcoxY$x[which.max(boxcoxY$y)]
+
+```
+```{r}
+train.C$rings = ((train.C$rings^lambda - 1)/lambda)
+test.C$rings = ((test.C$rings^lambda - 1)/lambda)
+```
+
+To address heteroscedasticity, we use a box-cox transformation with a slightly negative lambda from the result of our box-cox transformation.
+
+```{r}
+library(car)
+train.forVIF <- train.C
+
+fit.vif <- lm(rings~., data = train.forVIF)
+testVIF <- as.data.frame(vif(fit.vif))
+testVIF
+##
+#while(max(testVIF$GVIF) >= 10)
+#{
+#varTBE <- rownames(testVIF[testVIF$GVIF == max(testVIF$GVIF),])
+#train.forVIF <- train.forVIF[,!names(train.forVIF)%in%varTBE]
+#fit.vif <- lm(rings~., data = train.forVIF)
+#testVIF <- as.data.frame(vif(fit.vif))
+#}
+
+#train.C <- train.forVIF
+##
+```
+
+We attempted to drop the variable with the highest VIF iteratively if the variable with the highest VIF Has a VIF of over 10 or 20, but it ultimately made the models less predictive. Code here is retained for documentation.
+
+```{r}
+#train.C <- train.forVIF
+
+fit.scaled.transformed <- lm(rings~., data = train.C)
+
+summary(fit.scaled.transformed)
+
+par(mfrow = c(2,2))
+plot(fit.scaled.transformed)
+```
+
+The Normal Q-Q plot now looks much closer to normal, but there may still be some non-linearity as seen in the residuals vs fitted plot. We now investigate potential second order models.
+
+```{r, include = FALSE}
+fitsecond.scaled.transformed = lm(rings~.^2 + I(length^2) + I(diameter^2) + I(height^2) + I(whole_weight^2) + I(shucked_weight^2) + I(viscera_weight^2) + I(shell_weight^2), data=train.C) 
+
+stepAIC(lm(rings~1, data = train.C), scope = list(upper = fitsecond.scaled.transformed, lower = ~1), direction = "both", k = 2)
+
+fitsecond.AIC <- lm(formula = rings ~ diameter + shucked_weight + shell_weight + 
+    I(diameter^2) + sex + I(shucked_weight^2) + whole_weight + 
+    viscera_weight + height + I(length^2) + shucked_weight:sex + 
+    shucked_weight:whole_weight + shucked_weight:height + diameter:whole_weight + 
+    shell_weight:whole_weight, data = train.C) 
+
+```
+```{r}
+summary(fitsecond.scaled.transformed)
+summary(fitsecond.AIC)
+
+par(mfrow = c(2,2))
+plot(fitsecond.AIC)
+
+fitsecond.train.pred <- predict(fitsecond.AIC, newdata = train.C[,!names(train.C)%in%"rings"]) 
+fitsecond.test.pred <- predict(fitsecond.AIC, newdata = test.C[,!names(test.C)%in%"rings"])
+eval_results(train.C$rings, fitsecond.train.pred, train.C) 
+eval_results(test.C$rings, fitsecond.test.pred, test.C) 
+
+```
+
+Using AIC as our model selection criteria, we arrive at a model that has quite a few second order and interaction terms. However, this may be unstable due to effects from multicollinearity. Despite this, removing variables with high VIF seems to make for a less predictive model. The inclusion of the second-order components and interactions seems to have solved the heteroscedasticity issue. 
+
+
+
+# ridge and lasso regression model (categorical variable will be removed)
+```{r}
+x.train <- as.matrix(train[,-c(1,9)])
+y.train <- train[,9]
+x.test = as.matrix(test[,-c(1,9)])
+y.test = test[,9]
+grid <- 10^seq(2, -3, by = -.1)
+```
+
+#ridge
+```{r}
+library(glmnet)
+ridge <- glmnet(x.train, y.train, alpha = 0, lambda = grid)
+cv.ridge <- cv.glmnet(x.train, y.train, alpha =0, lambda = grid)
+opt.lambda.ridge <- cv.ridge$lambda.min
+opt.lambda.ridge
+```
+
+
+
+```{r}
+ridge.train.pred <- predict(ridge, s = opt.lambda.ridge, newx = x.train)
+ridge.test.pred <- predict(ridge, s = opt.lambda.ridge, newx = x.test)
+
+eval_results(y.train, ridge.train.pred, train[,-1])
+eval_results(y.test, ridge.test.pred, x.test[,-1])
+```
+
+#lasso
+```{r}
+lasso <- glmnet(x.train, y.train, alpha = 1, lambda = grid)
+cv.lasso <- cv.glmnet(x.train, y.train, alpha =1, lambda = grid)
+opt.lambda.lasso <- cv.lasso$lambda.min
+opt.lambda.lasso
+
+lasso.train.pred <- predict(lasso, s = opt.lambda.lasso, newx = x.train) 
+lasso.test.pred <- predict(lasso, s = opt.lambda.lasso, newx = x.test) 
+
+eval_results(y.train, lasso.train.pred, train[,-1])
+eval_results(y.test, lasso.test.pred, x.test[,-1])
+```
+
+
+```{r}
+fit1 <- lm(rings~length, data = train)
+summary(fit1)
+anova(fit1)
+```
+
+
+```{r}
+fit2 <- lm(rings~length+whole_weight, data = train)
+summary(fit2)
+anova(fit2)
+```

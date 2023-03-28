@@ -1,0 +1,133 @@
+---
+title: "STA 206 Homework 4"
+author: "Kevin Su"
+date: "10/28/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 6
+
+### Part A
+```{r}
+p6 <- cbind(c(-.97, 2.51, -0.19, 6.53, 1), c(-.63, .18, -.84, 1.6, 0.33), c(-.82, .49, .74, .58, -.31))
+row.names(p6) = 1:5
+colnames(p6) = c("Y", "X1", "X2")
+p6
+
+intercept0 <- rep(1, nrow(p6))
+
+y6 <- p6[,1]
+x6 <- cbind(intercept0, p6[,2:3])
+
+y6
+x6
+
+xtx <- t(x6)%*%x6
+xty <- t(x6)%*%y6
+xtxinv <- solve(xtx)
+
+xtx
+xty
+xtxinv
+```
+
+### Part B
+
+```{r}
+
+bvec <- xtxinv%*%xty
+
+bvec
+
+```
+B0hat = 1.265271
+B1hat = 2.679724
+B2hat = 1.233270
+
+### Part C
+
+```{r}
+library(Matrix)
+H <- x6 %*% xtxinv %*% t(x6)
+H
+
+rankMatrix(H)
+
+```
+
+rank(H) = 3, and rank(I-H) = 2
+
+### Part D
+
+```{r}
+traceH = 0
+for (i in 1:nrow(H))
+{
+  traceH = traceH + H[i,i]
+}
+traceH
+```
+The trace of H is 3, equal to the rank of H.
+
+### Part E
+```{r}
+model6 <- lm(y6~p6[,2]+p6[,3])
+
+model6$fitted.values
+model6$residuals
+anova(model6)
+
+
+```
+
+The SSE is 0.911, and the MSE is 0.456. The degrees of freedom of SSE is 2.
+
+### Part F
+
+```{r}
+x6nonadd <- cbind(x6, p6[,2]*p6[,3])
+colnames(x6nonadd)[4] = "X1X2"
+
+x6nonadd #design matrix
+
+xFx <- t(x6nonadd) %*% x6nonadd
+
+HF <- x6nonadd %*% solve(xFx) %*% t(x6nonadd)
+HF
+
+rankMatrix(HF)
+
+```
+
+rank(H) = 4 for part F
+rank(I-H) = 1 for part F
+
+The rank of H is 1 greater than the one from part C as there is one additional parameter
+
+### Part G
+
+```{r}
+BG <- solve(xFx) %*% t(x6nonadd) %*% y6
+BG
+
+```
+
+### Part H
+```{r}
+modelH <- lm(y6 ~ X1+X2+X1X2, data = as.data.frame(x6nonadd))
+modelH$fitted.values
+modelH$residuals
+anova(modelH)
+
+```
+The SSE = 0.012
+The MSE = 0.012
+The degrees of freedom of SSE is 1.
+
+### Part I
+The second model appears to fit the data better as it has a higher adjusted R-squared value.
+

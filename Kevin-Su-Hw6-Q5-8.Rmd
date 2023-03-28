@@ -1,0 +1,235 @@
+---
+title: "Homework 6 STA 206"
+author: "Kevin Su"
+date: "11/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem 5
+
+## A
+```{r}
+setwd("C:/Users/kevin/Downloads")
+property <- read.table("property.txt")
+colnames(property) <- c("Y", "X1", "X2", "X3", "X4")
+
+Model1 <- lm(Y~X1+X2+X4+X3, data = property)
+```
+
+## B
+```{r}
+summary(Model1)
+anova(Model1)
+
+PartRSqX3 <- anova(Model1)$`Sum Sq`[4]/sum(anova(Model1)$`Sum Sq`[c(4,5)])
+PartRSqX3
+
+PartcorrX3 <- sqrt(PartRSqX3) #sign is positive
+PartcorrX3
+
+```
+The fitted regression coefficient of X3 is 0.6193. The coefficient of partial determination R-squared(Y-3|124) is 0.420/(0.420 + 98.231) = 0.00426. The partial correlation is the signed square root of this value is 0.06523. The coefficient of partial determination measures the proportion of remaining SSE that is reduced by adding the new variable.
+
+## C
+
+```{r}
+eY.124 <- lm(Y~X1+X2+X4, data = property)$residuals
+e3.124 <- lm(X3~X1+X2+X4, data = property)$residuals
+av3 = lm(eY.124~e3.124)
+
+plot(e3.124, eY.124, ylab = "e(Y|X1+X2+X4)", xlab = "e(X3|X1+X2+X4)", main = "Added-Variable plot for X3")
+abline(av3)
+
+```
+
+We can see here X3 is not very useful in explaining additional variation in Y on top of X1, X2, and X4.
+
+
+## D
+```{r}
+summary(Model1)
+summary(av3)
+
+anova(av3)
+anova(Model1)
+
+```
+The slope from regressing the residuals of Y in the reduced model to the residuals of X3 regressed on X1, X2, and X4 yield the same fitted regression coefficient from Model1.
+
+Similarly, the Regression sum of squares is identical to the regression sum of squares from X3 in Model1. 
+## E
+```{r}
+anova(av3)
+anova(Model1)
+```
+The regression sum of squares from part D is identical to the extra sum of squares from the R output of model 1. 
+
+## F
+
+```{r}
+cor(eY.124, e3.124)
+PartcorrX3
+
+cor(eY.124,e3.124)^2
+PartRSqX3
+```
+
+The correlation coefficient between the two sets of residuals is identical to the partial correlation from part B at 0.06523. R-squared is the same as the partial coefficient of determination from part B as well at 0.004255.
+
+## G
+```{r}
+summary(lm(property$Y~e3.124))
+summary(Model1)
+```
+
+The fitted regression slope for regressing Y to the residuals of the regression of X3 on X1,2,4 is identical to the slope for X3 in Model1. The residuals from regressing X3 on X1,2,4 will leave the variation in X3 unexplained by X1,2,4. As such, this will be reflected in regressing Y to the variation in X3.
+
+# Problem 6
+
+## A
+```{r}
+sapply(property, mean)
+sapply(property, sd)
+
+propertyT <- property
+for (i in 2:5)
+{
+  propertyT[,i] = ((property[,i]-mean(property[,i]))/sd(property[,i]))/sqrt((length(property[,i])) - 1)
+}
+
+sapply(propertyT, mean)
+sapply(propertyT, sd)
+```
+
+
+The sample means of the transformed variables are 0 (though they have some infinitesimal values due to floating point errors). The sample standard deviations of the transformed variables are 1/sqrt(80).
+
+## B
+```{r}
+Model2 <- lm(Y~X1+X2+X4+X3, data = propertyT)
+summary(Model2)
+```
+
+The model equation for the standard first-order regression model with all four transformed X variables is Y = 15.1389 - 8.4262X1 + 6.5159X2 + 0.7454X3 + 7.7326X4, with the Xi's being transformed. The fitted regression intercept at 15.1389 differs from the intercept from Model1 in that the transformed model has the intercept at the mean of Y.
+
+## C
+
+```{r}
+anova(Model2)
+anova(Model1)
+```
+
+We find that the SST, SSE, and SSR under the standardized model is identical to those from the original model. 
+
+## D
+```{r}
+summary(Model2)
+summary(Model1)
+```
+
+We also find that the R-squared and R-squared adjusted are identical to that of the original model (it should follow that this is obviously the case considering SST/SSE/SSR remain identical).
+
+# Problem 7
+
+## A
+```{r}
+solve(cor(property[,2:5])) #Rxx inverse
+
+summary(lm(X1~X2+X4+X3, data = property))$r.squared
+summary(lm(X2~X1+X4+X3, data = property))$r.squared
+summary(lm(X4~X1+X2+X3, data = property))$r.squared
+summary(lm(X3~X1+X2+X4, data = property))$r.squared
+
+1/(1-summary(lm(X1~X2+X4+X3, data = property))$r.squared) #VIF X1
+1/(1-summary(lm(X2~X1+X4+X3, data = property))$r.squared) #VIF X2
+1/(1-summary(lm(X4~X1+X2+X3, data = property))$r.squared) #VIF X4
+1/(1-summary(lm(X3~X1+X2+X4, data = property))$r.squared) #VIF X3
+```
+
+There does seem to be a meaningful degree of multicollinearity in this data, and the other variables are meaningful predictors of the remaining variable. The VIFs are meaningfully present though not massive.
+
+## B
+```{r}
+Model3 <- lm(Y~X4, data = property)
+Model4 <- lm(Y~X3+X4, data = property)
+
+summary(Model3)
+summary(Model4)
+
+anova(Model3)
+anova(Model4)
+
+```
+
+The estimated regression coefficients of X4 in these two models are not too different from each other. The SSR for X4 in these two models also does not differ by much between each other. This is likely because X3 is not a good predictor of Y, so does not change the remaining residual by much.
+
+## C
+```{r}
+Model5 <- lm(Y~X2, data = property)
+Model6 <- lm(Y~X4+X2, data = property)
+
+summary(Model5)
+summary(Model6)
+
+anova(Model5)
+anova(Model6)
+
+```
+
+The regression coefficient for X2 in the larger model is much lower than that of X2 in the smaller model. SSR(2) was 40.5 while SSR(2|4) is only 9.29 due to effects from multicollinearity. X4 explains much of the variance that X2 does so adding X2 adds a much smaller amount of interpretive value to a model already containing X4.
+
+# Problem 8
+
+## A
+```{r}
+plot(property$X1, property$Y)
+
+```
+
+X1 is bimodal and the linear relationship seems weak. There may potentially be some quadratic relationship with the parabola curved downward? 
+
+## B
+```{r}
+propertyC = property
+
+propertyC[,2] = as.numeric(scale(propertyC[,2], scale = F))
+
+Model7 = lm(Y~X1+X2+X4+I(X1^2), data = propertyC)
+summary(Model7)
+
+plot(property$Y, Model7$fitted.values)
+```
+
+
+
+Y = 10.189 - 0.1817X1 + .314X2 + 0.000008046 X4 + 0.01415(X1^2)
+
+The model seems to provide a reasonably good fit of the data.
+
+## C
+
+R-squared and R-squared adjusted of this model is higher than Model 2 from Homework 5. (about 0.03 higher for this model).
+
+## D 
+```{r}
+summary(Model7)
+```
+
+H0: BHat associated with I(X1^2) = 0
+HA: BHat associated with I(X1^2) != 0
+
+Using T-test, we will reject null if |T| > |T(.975, df = 76)| = 1.9917.
+
+As t = 2.431, we reject the null and the quadratic term is kept in the model as it may be useful.
+
+## E
+```{r}
+newobs <- data.frame(X1 = 4, X2 = 10,  X4 = 80000)
+predict.lm(Model7, newobs, interval = "predict", level = 0.99)
+```
+
+The rental rates for such a property are expected to be 13.473 thousand with a 99% prediction interval between 10.479 and 16.466. Although the width of the prediction interval is similar to the interval from Homework 5, the expection of the prediction is much lower (Hw5 predicted 15.11 thousand).

@@ -1,0 +1,81 @@
+---
+title: "STA206 Fall 2021: Quiz3 Question 2"
+output:
+  html_document: default
+  word_document: default
+---
+
+
+
+**Instruction**:  <br>
+
+* In this question, you will be asked to perform some  tasks in R <br>
+* You should submit a .html or .pdf or .docx file 
+
+
+
+In *Quiz3_data_Q2.Rdata*, you will find a data set called **data**  with 6 variables: *Y, V1, V2, V3, V4, V5*. The goal is to use **data** to build a model of *Y* using  *V1,...,V5* as (potential) predictors. Note that, you may need to transform the response variable *Y*.
+
+* **(a). Load the data into the R workspace. **<br>
+
+```{r}
+load("C:/Users/kevin/Downloads/Quiz3_data_Q2.Rdata")
+```
+
+* **(b). Check variable type for each variable and convert $V1$ to a factor. **<br>
+
+```{r}
+sapply(data, class)
+data[,2] <- as.factor(data[,2])
+sapply(data, class)
+```
+
+* **(c). Fit the 1st-order model. Does this model suggest any transformation? **<br> 
+
+```{r}
+Model1 <- lm(Y~., data = data)
+summary(Model1)
+
+library(MASS)
+
+boxcox(Model1)
+
+pie(table(data$V1), main = "V1")
+
+par(mfrow = c(2,3))
+hist(data$Y)
+hist(data$V2)
+hist(data$V3)
+hist(data$V4)
+hist(data$V5)
+
+```
+
+*(Type your answer here) (c):* Large confidence interval for box-cox procedure including lambda = 1 does not suggest any transformation of Y is necessary. The values of V2-V5 seem fine.
+
+
+* **(d) Build a model that satisfies the following requirements and briefly describe how you reach this model:  **<br>
+  i. The number of regression coefficients in the model is no more than $10$;
+  ii. Model assumptions hold (reasonably) well; 
+  iii. The adjusted coefficient of multiple determination is at least $0.89$.
+
+
+*(Note: even if you can not get a model that satisfies all the requirements, you may still get partial credits if your steps make sense. So try your best!)*
+
+```{r}
+# (d). (Type your code in the space below)
+library("leaps")
+
+subs <- regsubsets(Y~.^2, data = data, nbest = 10, nvmax = 10, method = "exhaustive")
+subsummary <- summary(subs)
+
+subrsq2 <- cbind(subsummary$which, subsummary$adjr2)
+colnames(subrsq2) <- c(colnames(subsummary$which), "RSq-adj")
+subrsq2
+
+summary(lm(formula = Y ~ V1 + V2 + V3 + V5 + V1:V4 + V4:V5, data = data))
+
+```
+
+*(Type your answer here) (d):* 
+I used the Regsubsets function to explore all interaction terms and return the top 10 hits with a max number of variables up to 10 through best subset selection. Despite finding quite a lot of models with adjusted R-sq above 0.89, I had great difficulty encoding some V1 interaction terms while excluding others, so I settled on the model outputted in the code which is Y ~ V1 + V2 + V3 + V5 + V1:V4 + V4:V5, with V1:V4 and V4:V5 being the only interaction terms. As such here there are 9 variables (not including intercept) and the Adjusted R-squared for this model is 0.8905. I considered using the stepAIC function to search but I felt it was not in the spirit of the quiz to search using a different criterion even though it would certainly have yielded a better, more clear result. 

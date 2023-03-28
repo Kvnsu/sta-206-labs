@@ -1,0 +1,87 @@
+---
+title: "Homework 1 STA 206"
+author: "Kevin Su"
+date: "10/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#Problem 7A
+x <- seq(1,100)
+```
+
+```{r}
+#Problem 7B
+w <- 0.5 * x + 2
+```
+
+```{r}
+#Problem 7C
+normsamp <- rnorm(100, mean = 0, sd = 5)
+sd(normsamp) 
+mean(normsamp)
+hist(normsamp)
+```
+
+Problem 7C: Symmetric distribution centered around zero. Sample Standard deviation of 4.55 and Mean of -0.2. 
+
+```{r}
+#Problem 7D
+y <- w + normsamp
+```
+
+```{r}
+#Problem 7E
+plot(x,y = y)
+#Problem 7F
+coeffs <- lm(y~x)
+abline(coeffs)
+```
+
+```{r}
+#Problem 7G
+coeffsres <- residuals(coeffs)
+MSE <- sum(residuals(coeffs)^2)/length(residuals(coeffs))
+plot(x, coeffsres)
+MSE
+```
+Problem 7G: More residual values closer to 0 than farther away, no clear trend (as expected)
+
+
+Problem 7H: Repeating C through G tends to yield similar results. 
+
+```{r}
+#Problem 7I
+b1s = vector(mode = "numeric", length = 1000)
+mses = vector(mode = "numeric", length = 1000)
+b0s = vector(mode = "numeric", length = 1000)
+
+for (i in 1:1000)
+{
+normsamp2 <- rnorm(100, mean = 0, sd = 5)
+y2 <- w + normsamp2
+
+coeffs2 <-lm(y2~x)
+b0s[i] <- as.numeric(coeffs2$coefficients[1])
+b1s[i] <- as.numeric(coeffs2$coefficients[2])
+mses[i] <- sum(residuals(coeffs2)^2)/length(residuals(coeffs2))
+}
+
+hist(b0s, main = "Histogram of Intercepts (b0)")
+hist(b1s, main = "Histogram of Slopes (b1)")
+hist(mses, main = "Histogram of MSEs")
+
+mean(b0s)
+mean(b1s)
+mean(mses)
+
+var(b0s)
+var(b1s)
+var(mses)
+```
+
+Problem 7I: MSEs are centered around 25 (squared standard deviation), slopes centered around 0.5 as indicated in part B, and similarly intercepts centered near 2.
